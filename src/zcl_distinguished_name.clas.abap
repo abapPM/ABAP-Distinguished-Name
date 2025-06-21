@@ -52,9 +52,7 @@ CLASS zcl_distinguished_name DEFINITION
         !separator    TYPE c DEFAULT c_separators-comma
         !common_order TYPE abap_bool DEFAULT abap_true
       RETURNING
-        VALUE(result) TYPE string
-      RAISING
-        zcx_error.
+        VALUE(result) TYPE string.
 
   PROTECTED SECTION.
   PRIVATE SECTION.
