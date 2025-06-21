@@ -1,16 +1,18 @@
 {
-  "name": "{{module}}",
+  "name": "distinguished-name",
   "version": "1.0.0",
-  "description": "{{package}}",
+  "description": "Parser and formatter for distinguished names (RFC 1779)",
   "type": "module",
   "keywords": [
     "abap",
     "apm",
-    "module"
+    "module",
+    "distinguished-name",
+    "rfc-1779"
   ],
   "homepage": "https://abappm.com",
   "bugs": {
-    "url": "https://github.com/abapPM/{{repo}}"
+    "url": "https://github.com/abapPM/ABAP-Distinguished-Name"
   },
   "license": "MIT",
   "author": {
@@ -24,14 +26,11 @@
     }
   ],
   "repository": {
-    "url": "https://github.com/abapPM/{{repo}}"
+    "url": "https://github.com/abapPM/ABAP-Distinguished-Name"
   },
   "funding": {
     "type": "github",
     "url": "https://github.com/sponsors/abapPM"
-  },
-  "dependencies": {
-    "error": "^1.0.0"
   },
   "engines": {
     "abap": ">=7.50",
