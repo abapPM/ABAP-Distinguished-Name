@@ -1,4 +1,4 @@
-CLASS zcl_distinguished_name DEFINITION
+CLASS /apmg/cl_distinguished_name DEFINITION
   PUBLIC
   FINAL
   CREATE PUBLIC.
@@ -23,16 +23,36 @@ CLASS zcl_distinguished_name DEFINITION
       ty_distinguished_name TYPE STANDARD TABLE OF ty_name_component WITH KEY key.
 
     CONSTANTS:
-      "! X.520
-      BEGIN OF c_keywords,
-        common_name              TYPE string VALUE 'CN',
-        organizational_unit_name TYPE string VALUE 'OU',
-        organization_name        TYPE string VALUE 'O',
-        locality_name            TYPE string VALUE 'L',
-        state_or_province_name   TYPE string VALUE 'SP',
-        state_name               TYPE string VALUE 'ST',
-        country_name             TYPE string VALUE 'C',
-      END OF c_keywords,
+      "! Schema sapcryptolib
+      "! https://me.sap.com/notes/2338952
+      BEGIN OF c_schema,
+        common_name         TYPE string VALUE 'CN',
+        surname             TYPE string VALUE 'S',
+        title               TYPE string VALUE 'T',
+        description         TYPE string VALUE 'D',
+        serial_number       TYPE string VALUE 'SN',
+        business_category   TYPE string VALUE 'BC',
+        organizational_unit TYPE string VALUE 'OU',
+        organization        TYPE string VALUE 'O',
+        locality            TYPE string VALUE 'L',
+        street_address      TYPE string VALUE 'ST',
+        state_or_province   TYPE string VALUE 'SP',
+        country             TYPE string VALUE 'C',
+      END OF c_schema,
+      BEGIN OF c_schema_rfc2256,
+        common_name         TYPE string VALUE 'CN',
+        surname             TYPE string VALUE 'S',
+        title               TYPE string VALUE 'T',
+        description         TYPE string VALUE 'DESCRIPTION',
+        serial_number       TYPE string VALUE 'SERIALNUMBER',
+        business_category   TYPE string VALUE 'BUSINESSCATEGORY',
+        organizational_unit TYPE string VALUE 'OU',
+        organization        TYPE string VALUE 'O',
+        locality            TYPE string VALUE 'L',
+        street_address      TYPE string VALUE 'STREET',
+        state_or_province   TYPE string VALUE 'ST',
+        country             TYPE string VALUE 'C',
+      END OF c_schema_rfc2256,
       BEGIN OF c_separators,
         comma     TYPE c VALUE ',',
         semicolon TYPE c VALUE ';',
@@ -89,7 +109,7 @@ ENDCLASS.
 
 
 
-CLASS zcl_distinguished_name IMPLEMENTATION.
+CLASS /apmg/cl_distinguished_name IMPLEMENTATION.
 
 
   METHOD format.
@@ -179,7 +199,7 @@ CLASS zcl_distinguished_name IMPLEMENTATION.
 
     " Process common components in order
     DO.
-      ASSIGN COMPONENT sy-index OF STRUCTURE c_keywords TO FIELD-SYMBOL(<keyword>).
+      ASSIGN COMPONENT sy-index OF STRUCTURE c_schema TO FIELD-SYMBOL(<keyword>).
       IF sy-subrc <> 0.
         EXIT.
       ENDIF.
