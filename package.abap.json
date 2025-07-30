@@ -1,7 +1,7 @@
 {
   "name": "distinguished-name",
   "version": "1.0.0",
-  "description": "Parser and formatter for distinguished names (RFC 1779)",
+  "description": "Parser and formatter for distinguished names (RFC 1779) ",
   "type": "module",
   "keywords": [
     "abap",
