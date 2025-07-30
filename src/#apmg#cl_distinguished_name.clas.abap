@@ -52,7 +52,7 @@ CLASS /apmg/cl_distinguished_name DEFINITION
         street_address      TYPE string VALUE 'STREET',
         state_or_province   TYPE string VALUE 'ST',
         country             TYPE string VALUE 'C',
-      END OF c_schema_rfc2256,
+      END OF c_schema_rfc2256 ##NEEDED,
       BEGIN OF c_separators,
         comma     TYPE c VALUE ',',
         semicolon TYPE c VALUE ';',
@@ -73,7 +73,6 @@ CLASS /apmg/cl_distinguished_name DEFINITION
         !common_order TYPE abap_bool DEFAULT abap_true
       RETURNING
         VALUE(result) TYPE string.
-
   PROTECTED SECTION.
   PRIVATE SECTION.
 
