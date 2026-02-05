@@ -108,7 +108,7 @@ ENDCLASS.
 
 
 
-CLASS /apmg/cl_distinguished_name IMPLEMENTATION.
+CLASS /APMG/CL_DISTINGUISHED_NAME IMPLEMENTATION.
 
 
   METHOD format.
@@ -130,36 +130,52 @@ CLASS /apmg/cl_distinguished_name IMPLEMENTATION.
   METHOD parse.
 
     " Replace special characters with %xx so we can easily split the name
-    DO strlen( c_special ) TIMES.
-      DATA(pos) = sy-index - 1.
-      name = replace(
-        val  = name
-        sub  = '\' && c_special+pos(1)
-        with = _special_to_hex( c_special+pos(1) )
-        occ  = 0 ).
-    ENDDO.
-
-    SPLIT name AT separator INTO TABLE DATA(parts).
-
-    LOOP AT parts ASSIGNING FIELD-SYMBOL(<part>).
-      DATA(name_component) = VALUE ty_name_component( ).
-      SPLIT <part> AT '=' INTO name_component-key name_component-name.
-      CONDENSE name_component-key NO-GAPS.
-
-      " Revert %xx replacements
-      DO strlen( c_special ) TIMES.
-        pos = sy-index - 1.
-        name = replace(
-          val  = name
-          sub  = _special_to_hex( c_special+pos(1) )
-          with = '\' && c_special+pos(1)
-          occ  = 0 ).
-      ENDDO.
-
-      name_component-name = _unescape( name_component-name ).
-      INSERT name_component INTO TABLE result.
-    ENDLOOP.
-
+*    DO strlen( c_special ) TIMES.
+*      DATA(pos) = sy-index - 1.
+*      name = replace(
+*        val  = name
+*        sub  = '\' && c_special+pos(1)
+*        with = _special_to_hex( c_special+pos(1) )
+*        occ  = 0 ).
+*    ENDDO.
+*
+*    SPLIT name AT separator INTO TABLE DATA(parts).
+*
+*    LOOP AT parts ASSIGNING FIELD-SYMBOL(<part>).
+*      DATA(name_component) = VALUE ty_name_component( ).
+*      SPLIT <part> AT '=' INTO name_component-key name_component-name.
+*      CONDENSE name_component-key NO-GAPS.
+*
+*      " Revert %xx replacements
+*      DO strlen( c_special ) TIMES.
+*        pos = sy-index - 1.
+*        name = replace(
+*          val  = name
+*          sub  = _special_to_hex( c_special+pos(1) )
+*          with = '\' && c_special+pos(1)
+*          occ  = 0 ).
+*      ENDDO.
+*
+*      name_component-name = _unescape( name_component-name ).
+*      INSERT name_component INTO TABLE result.
+*    ENDLOOP.
+    TRY.
+        CALL METHOD cl_abap_x509_certificate=>dn_to_certentry
+          EXPORTING
+*           if_convflags = 0
+            if_dname     = CONV string( name )
+*           if_dnformat  = CO_FORMAT_UNICODE
+          IMPORTING
+            et_certentry = DATA(et_certentry).
+      CATCH cx_abap_x509_certificate.
+        EXIT.
+    ENDTRY.
+    result = VALUE #(
+     FOR w IN et_certentry
+    ( key = w-oid
+      name = w-value
+     )
+    ).
     IF common_order = abap_true.
       result = _sort( result ).
     ENDIF.
@@ -249,6 +265,7 @@ CLASS /apmg/cl_distinguished_name IMPLEMENTATION.
     result = value.
 
     DATA(pos) = strlen( result ) - 1.
+    CHECK pos GT 0.
     IF result+pos(1) = '"'.
       result = result(pos).
     ENDIF.
