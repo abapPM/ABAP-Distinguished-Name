@@ -73,6 +73,7 @@ CLASS /apmg/cl_distinguished_name DEFINITION
         !common_order TYPE abap_bool DEFAULT abap_true
       RETURNING
         VALUE(result) TYPE string.
+
   PROTECTED SECTION.
   PRIVATE SECTION.
 
