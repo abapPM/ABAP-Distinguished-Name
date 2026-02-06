@@ -5,7 +5,9 @@ CLASS ltcl_tests DEFINITION FOR TESTING
   PRIVATE SECTION.
     METHODS:
       parse FOR TESTING,
-      format FOR TESTING.
+      parse_with_separator FOR TESTING,
+      format FOR TESTING,
+      format_with_separator FOR TESTING.
 
 ENDCLASS.
 
@@ -13,7 +15,8 @@ CLASS ltcl_tests IMPLEMENTATION.
 
   METHOD parse.
 
-    DATA(dn) = 'CN=Sectigo ECC Domain Validation Secure Server CA, O=Sectigo Limited, L=Salford, SP=Greater Manchester, C=GB'.
+    DATA(dn) = 'CN=Sectigo ECC Domain Validation Secure Server CA, O=Sectigo Limited,'
+      && ' L=Salford, SP=Greater Manchester, C=GB'.
 
     DATA(act) = /apmg/cl_distinguished_name=>parse( dn ).
 
@@ -28,13 +31,17 @@ CLASS ltcl_tests IMPLEMENTATION.
       act = act
       exp = exp ).
 
-    dn = |CN=*.dingtalk.com, O="Alibaba (China) Technology Co., Ltd.", L=HangZhou, SP=ZheJiang, C=CN|.
+  ENDMETHOD.
 
-    act = /apmg/cl_distinguished_name=>parse( dn ).
+  METHOD parse_with_separator.
 
-    exp = VALUE /apmg/cl_distinguished_name=>ty_distinguished_name(
+    DATA(dn) = 'CN=*.dingtalk.com, O="Alibaba (China) Technology Co., Ltd.", L=HangZhou, SP=ZheJiang, C=CN'.
+
+    DATA(act) = /apmg/cl_distinguished_name=>parse( dn ).
+
+    DATA(exp) = VALUE /apmg/cl_distinguished_name=>ty_distinguished_name(
       ( key = 'CN' name = '*.dingtalk.com' )
-      ( key = 'O'  name = |"Alibaba (China) Technology Co., Ltd."| )
+      ( key = 'O'  name = '"Alibaba (China) Technology Co., Ltd."' )
       ( key = 'L'  name = 'HangZhou' )
       ( key = 'SP' name = 'ZheJiang' )
       ( key = 'C'  name = 'CN' ) ).
@@ -42,7 +49,6 @@ CLASS ltcl_tests IMPLEMENTATION.
     cl_abap_unit_assert=>assert_equals(
       act = act
       exp = exp ).
-
 
   ENDMETHOD.
 
@@ -57,22 +63,8 @@ CLASS ltcl_tests IMPLEMENTATION.
 
     DATA(act) = /apmg/cl_distinguished_name=>format( dn ).
 
-    DATA(exp) = 'CN=Sectigo ECC Domain Validation Secure Server CA, O=Sectigo Limited, L=Salford, SP=Greater Manchester, C=GB'.
-
-    cl_abap_unit_assert=>assert_equals(
-      act = act
-      exp = exp ).
-
-    dn = VALUE /apmg/cl_distinguished_name=>ty_distinguished_name(
-      ( key = 'CN' name = '*.dingtalk.com' )
-      ( key = 'O'  name = |"Alibaba (China) Technology Co., Ltd."| )
-      ( key = 'L'  name = 'HangZhou' )
-      ( key = 'SP' name = 'ZheJiang' )
-      ( key = 'C'  name = 'CN' ) ).
-
-    act = /apmg/cl_distinguished_name=>format( dn ).
-
-    exp = |CN=*.dingtalk.com, O="Alibaba (China) Technology Co., Ltd.", L=HangZhou, SP=ZheJiang, C=CN|.
+    DATA(exp) = 'CN=Sectigo ECC Domain Validation Secure Server CA, O=Sectigo Limited,'
+      && ' L=Salford, SP=Greater Manchester, C=GB'.
 
     cl_abap_unit_assert=>assert_equals(
       act = act
@@ -80,4 +72,22 @@ CLASS ltcl_tests IMPLEMENTATION.
 
   ENDMETHOD.
 
+  METHOD format_with_separator.
+
+    DATA(dn) = VALUE /apmg/cl_distinguished_name=>ty_distinguished_name(
+      ( key = 'CN' name = '*.dingtalk.com' )
+      ( key = 'O'  name = '"Alibaba (China) Technology Co., Ltd."' )
+      ( key = 'L'  name = 'HangZhou' )
+      ( key = 'SP' name = 'ZheJiang' )
+      ( key = 'C'  name = 'CN' ) ).
+
+    DATA(act) = /apmg/cl_distinguished_name=>format( dn ).
+
+    DATA(exp) = 'CN=*.dingtalk.com, O="Alibaba (China) Technology Co., Ltd.", L=HangZhou, SP=ZheJiang, C=CN'.
+
+    cl_abap_unit_assert=>assert_equals(
+      act = act
+      exp = exp ).
+
+  ENDMETHOD.
 ENDCLASS.

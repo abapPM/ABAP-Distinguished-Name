@@ -89,19 +89,20 @@ CLASS /apmg/cl_distinguished_name DEFINITION
 
     CLASS-METHODS _escape
       IMPORTING
-        value         TYPE string
+        !value        TYPE string
+        !separator    TYPE c
       RETURNING
         VALUE(result) TYPE string.
 
     CLASS-METHODS _unescape
       IMPORTING
-        value         TYPE string
+        !value        TYPE string
       RETURNING
         VALUE(result) TYPE string.
 
     CLASS-METHODS _special_to_hex
       IMPORTING
-        value         TYPE ty_c1
+        !value        TYPE ty_c1
       RETURNING
         VALUE(result) TYPE ty_c1.
 
@@ -122,7 +123,8 @@ CLASS /apmg/cl_distinguished_name IMPLEMENTATION.
       IF result IS NOT INITIAL.
         result = |{ result }{ separator } |.
       ENDIF.
-      result = |{ result }{ <name_component>-key }={ _escape( <name_component>-name ) }|.
+      result = |{ result }{ <name_component>-key }=|
+        && |{ _escape( value = <name_component>-name separator = separator ) }|.
     ENDLOOP.
 
   ENDMETHOD.
@@ -188,7 +190,7 @@ CLASS /apmg/cl_distinguished_name IMPLEMENTATION.
     ENDDO.
 
     " Multiple spaces also need to be quoted
-    IF result <> value OR value CS `  `.
+    IF ( result <> value OR value CS `  ` OR value CA separator ) AND result(1) <> '"'.
       result = |"{ result }"|.
     ENDIF.
 
