@@ -63,6 +63,21 @@ CLASS ltcl_tests IMPLEMENTATION.
       act = act
       exp = exp ).
 
+    dn = VALUE /apmg/cl_distinguished_name=>ty_distinguished_name(
+      ( key = 'CN' name = '*.dingtalk.com' )
+      ( key = 'O'  name = |"Alibaba (China) Technology Co., Ltd."| )
+      ( key = 'L'  name = 'HangZhou' )
+      ( key = 'SP' name = 'ZheJiang' )
+      ( key = 'C'  name = 'CN' ) ).
+
+    act = /apmg/cl_distinguished_name=>format( dn ).
+
+    exp = |CN=*.dingtalk.com, O="Alibaba (China) Technology Co., Ltd.", L=HangZhou, SP=ZheJiang, C=CN|.
+
+    cl_abap_unit_assert=>assert_equals(
+      act = act
+      exp = exp ).
+
   ENDMETHOD.
 
 ENDCLASS.
