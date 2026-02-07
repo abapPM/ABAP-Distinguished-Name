@@ -60,7 +60,7 @@ CLASS /apmg/cl_distinguished_name DEFINITION
 
     CLASS-METHODS parse
       IMPORTING
-        VALUE(name)   TYPE csequence
+        !name         TYPE csequence
         !separator    TYPE c DEFAULT c_separators-comma
         !common_order TYPE abap_bool DEFAULT abap_true
       RETURNING
@@ -78,8 +78,6 @@ CLASS /apmg/cl_distinguished_name DEFINITION
   PRIVATE SECTION.
 
     CONSTANTS c_special TYPE c LENGTH 8 VALUE '",=+<>#;'.
-
-    TYPES ty_c1 TYPE c LENGTH 1.
 
     CLASS-METHODS _sort
       IMPORTING
@@ -100,11 +98,29 @@ CLASS /apmg/cl_distinguished_name DEFINITION
       RETURNING
         VALUE(result) TYPE string.
 
-    CLASS-METHODS _special_to_hex
+    CLASS-METHODS _unquote
       IMPORTING
-        !value        TYPE ty_c1
+        !value        TYPE string
       RETURNING
-        VALUE(result) TYPE ty_c1.
+        VALUE(result) TYPE string.
+
+    CLASS-METHODS _add_part
+      IMPORTING
+        !value TYPE string
+      CHANGING
+        !parts TYPE string_table.
+
+    CLASS-METHODS _add_name_component
+      IMPORTING
+        !parts TYPE string_table
+      CHANGING
+        !name  TYPE ty_distinguished_name.
+
+    CLASS-METHODS _trim
+      IMPORTING
+        !value        TYPE string
+      RETURNING
+        VALUE(result) TYPE string.
 
 ENDCLASS.
 
@@ -132,36 +148,76 @@ CLASS /apmg/cl_distinguished_name IMPLEMENTATION.
 
   METHOD parse.
 
-    " Replace special characters with %xx so we can easily split the name
-    DO strlen( c_special ) TIMES.
-      DATA(pos) = sy-index - 1.
-      name = replace(
-        val  = name
-        sub  = '\' && c_special+pos(1)
-        with = _special_to_hex( c_special+pos(1) )
-        occ  = 0 ).
-    ENDDO.
+    " Parse the DN string character by character, respecting quotes
+    DATA(pos) = 0.
+    DATA(char) = 'X'.
+    DATA(part) = ``.
+    DATA(in_quotes) = abap_false.
+    DATA(escape_next) = abap_false.
+    DATA(parts) = VALUE string_table( ).
 
-    SPLIT name AT separator INTO TABLE DATA(parts).
+    WHILE pos < strlen( name ).
+      char = name+pos(1).
 
-    LOOP AT parts ASSIGNING FIELD-SYMBOL(<part>).
-      DATA(name_component) = VALUE ty_name_component( ).
-      SPLIT <part> AT '=' INTO name_component-key name_component-name.
-      CONDENSE name_component-key NO-GAPS.
+      IF escape_next = abap_true.
+        " Escaped character - add as-is
+        CONCATENATE part char INTO part RESPECTING BLANKS.
+        escape_next = abap_false.
+        pos = pos + 1.
+        CONTINUE.
+      ENDIF.
 
-      " Revert %xx replacements
-      DO strlen( c_special ) TIMES.
-        pos = sy-index - 1.
-        name = replace(
-          val  = name
-          sub  = _special_to_hex( c_special+pos(1) )
-          with = '\' && c_special+pos(1)
-          occ  = 0 ).
-      ENDDO.
+      IF char = '\'.
+        " Escape character
+        escape_next = abap_true.
+        CONCATENATE part char INTO part RESPECTING BLANKS.
+        pos = pos + 1.
+        CONTINUE.
+      ENDIF.
 
-      name_component-name = _unescape( name_component-name ).
-      INSERT name_component INTO TABLE result.
-    ENDLOOP.
+      IF char = '"'.
+        " Toggle quote state
+        in_quotes = xsdbool( in_quotes = abap_false ).
+        CONCATENATE part char INTO part RESPECTING BLANKS.
+        pos = pos + 1.
+        CONTINUE.
+      ENDIF.
+
+      IF char = separator AND in_quotes = abap_false.
+        " Separator outside quotes - split here
+        _add_part(
+          EXPORTING
+            value = part
+          CHANGING
+            parts = parts ).
+
+        part = ``.
+        pos = pos + 1.
+
+        " Skip whitespace after separator
+        WHILE pos < strlen( name ) AND name+pos(1) = ` `.
+          pos = pos + 1.
+        ENDWHILE.
+        CONTINUE.
+      ENDIF.
+
+      " Regular character
+        CONCATENATE part char INTO part RESPECTING BLANKS.
+      pos = pos + 1.
+    ENDWHILE.
+
+    " Add last part
+    _add_part(
+      EXPORTING
+        value = part
+      CHANGING
+        parts = parts ).
+
+    _add_name_component(
+      EXPORTING
+        parts = parts
+      CHANGING
+        name  = result ).
 
     IF common_order = abap_true.
       result = _sort( result ).
@@ -170,28 +226,92 @@ CLASS /apmg/cl_distinguished_name IMPLEMENTATION.
   ENDMETHOD.
 
 
+  METHOD _add_name_component.
+
+    DATA(equal_pos) = 0.
+    DATA(value_start) = 0.
+    DATA(name_component) = VALUE ty_name_component( ).
+
+    " Parse each part into key=value pairs
+    LOOP AT parts ASSIGNING FIELD-SYMBOL(<part>).
+      CLEAR name_component.
+      equal_pos   = find( val = <part> sub = '=' ).
+      value_start = equal_pos + 1.
+      IF equal_pos < 0.
+        CONTINUE.
+      ENDIF.
+      name_component-key  = condense( <part>(equal_pos) ).
+      name_component-name = _unescape( _trim( |{ <part>+value_start }| ) ).
+      INSERT name_component INTO TABLE name.
+    ENDLOOP.
+
+  ENDMETHOD.
+
+
+  METHOD _add_part.
+
+    " Trim only leading/trailing spaces (preserve internal spaces and quotes)
+    DATA(part) = _trim( value ).
+
+    IF part IS NOT INITIAL.
+      INSERT part INTO TABLE parts.
+    ENDIF.
+
+  ENDMETHOD.
+
+
   METHOD _escape.
 
-    result = value.
+    result = _unquote( value ).
 
-    result = replace(
-      val  = result
-      sub  = '\\'
-      with = '\'
-      occ  = 0 ).
+    " Check if quoting is needed according to RFC 1779
+    DATA(needs_quoting) = abap_false.
 
-    DO strlen( c_special ) TIMES.
-      DATA(pos) = sy-index - 1.
+    " Check for leading/trailing spaces
+    IF _trim( result ) <> result.
+      needs_quoting = abap_true.
+    ENDIF.
+
+    " Check for consecutive spaces
+    IF result CS `  `.
+      needs_quoting = abap_true.
+    ENDIF.
+
+    " Check for special characters that require quoting
+    IF result CA c_special OR result CA separator.
+      needs_quoting = abap_true.
+    ENDIF.
+
+    " Escape quotes inside the quoted string
+    IF needs_quoting = abap_true.
+      " Escape backslashes first (double them)
       result = replace(
         val  = result
-        sub  = c_special+pos(1)
-        with = '\' && c_special+pos(1)
+        sub  = '\'
+        with = '\\'
         occ  = 0 ).
-    ENDDO.
 
-    " Multiple spaces also need to be quoted
-    IF ( result <> value OR value CS `  ` OR value CA separator ) AND result(1) <> '"'.
+      " Inside quotes, escape quotes
+      result = replace(
+        val  = result
+        sub  = '"'
+        with = '\"'
+        occ  = 0 ).
       result = |"{ result }"|.
+    ELSE.
+      " Not quoting, so escape special characters with backslash
+      DO strlen( c_special ) TIMES.
+        DATA(pos) = sy-index - 1.
+        DATA(special_char) = c_special+pos(1).
+
+        IF special_char <> '"'.
+          result = replace(
+            val  = result
+            sub  = special_char
+            with = '\' && special_char
+            occ  = 0 ).
+        ENDIF.
+      ENDDO.
     ENDIF.
 
   ENDMETHOD.
@@ -221,58 +341,55 @@ CLASS /apmg/cl_distinguished_name IMPLEMENTATION.
   ENDMETHOD.
 
 
-  METHOD _special_to_hex.
-
-    CASE value.
-      WHEN '"'.
-        result = '%22'.
-      WHEN '#'.
-        result = '%23'.
-      WHEN '+'.
-        result = '%2B'.
-      WHEN ','.
-        result = '%2C'.
-      WHEN ';'.
-        result = '%3B'.
-      WHEN '<'.
-        result = '%3C'.
-      WHEN '='.
-        result = '%3D'.
-      WHEN '>'.
-        result = '%3E'.
-      WHEN OTHERS.
-        ASSERT 1 = 2.
-    ENDCASE.
-
+  METHOD _trim.
+    result = condense( val = value from = `` ).
   ENDMETHOD.
 
 
   METHOD _unescape.
 
+    " Process escape sequences
+    DATA(pos) = 0.
+    DATA(input) = _unquote( value ).
+    DATA(escape_next) = abap_false.
+
+    WHILE pos < strlen( input ).
+      DATA(char) = input+pos(1).
+
+      IF escape_next = abap_true.
+        " Escaped character - add the character itself (backslash removed)
+        result = result && char.
+        escape_next = abap_false.
+      ELSEIF char = '\'.
+        escape_next = abap_true.
+      ELSE.
+        " Regular character
+        result = result && char.
+      ENDIF.
+
+      pos = pos + 1.
+    ENDWHILE.
+
+  ENDMETHOD.
+
+
+  METHOD _unquote.
+
+    " According to RFC 1779, surrounding quotes are delimiters and should be removed
+    " Check if value is quoted (starts and ends with quotes)
     result = value.
+    DATA(len) = strlen( result ).
 
-    DATA(pos) = strlen( result ) - 1.
-    IF result+pos(1) = '"'.
-      result = result(pos).
+    IF len > 1 AND result(1) = '"'.
+      IF substring( val = result off = len - 1 len = 1 ) = '"'.
+        " Check if the quotes are delimiters (not escaped)
+        " If the second character is a backslash, the first quote might be escaped
+        IF substring( val = result off = len - 2 len = 1 ) <> '\'.
+          len = len - 2.
+          result = substring( val = result off = 1 len = len ).
+        ENDIF.
+      ENDIF.
     ENDIF.
-    IF result(1) = '"'.
-      result = result+1.
-    ENDIF.
-
-    DO strlen( c_special ) TIMES.
-      pos = sy-index - 1.
-      result = replace(
-        val  = result
-        sub  = '\' && c_special+pos(1)
-        with = c_special+pos(1)
-        occ  = 0 ).
-    ENDDO.
-
-    result = replace(
-      val  = result
-      sub  = '\\'
-      with = '\'
-      occ  = 0 ).
 
   ENDMETHOD.
 ENDCLASS.
