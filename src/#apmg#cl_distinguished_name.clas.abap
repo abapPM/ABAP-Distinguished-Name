@@ -156,7 +156,7 @@ CLASS /apmg/cl_distinguished_name IMPLEMENTATION.
     DATA(escape_next) = abap_false.
     DATA(parts) = VALUE string_table( ).
 
-    WHILE pos < strlen( name ).
+    WHILE strlen( name ) > pos.
       char = name+pos(1).
 
       IF escape_next = abap_true.
@@ -195,14 +195,14 @@ CLASS /apmg/cl_distinguished_name IMPLEMENTATION.
         pos = pos + 1.
 
         " Skip whitespace after separator
-        WHILE pos < strlen( name ) AND name+pos(1) = ` `.
+        WHILE strlen( name ) > pos AND name+pos(1) = ` `.
           pos = pos + 1.
         ENDWHILE.
         CONTINUE.
       ENDIF.
 
       " Regular character
-        CONCATENATE part char INTO part RESPECTING BLANKS.
+      CONCATENATE part char INTO part RESPECTING BLANKS.
       pos = pos + 1.
     ENDWHILE.
 
@@ -353,7 +353,7 @@ CLASS /apmg/cl_distinguished_name IMPLEMENTATION.
     DATA(input) = _unquote( value ).
     DATA(escape_next) = abap_false.
 
-    WHILE pos < strlen( input ).
+    WHILE strlen( input ) > pos.
       DATA(char) = input+pos(1).
 
       IF escape_next = abap_true.
